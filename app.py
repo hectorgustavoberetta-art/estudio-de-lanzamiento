@@ -146,6 +146,46 @@ def show_live_generation():
                 file_name="material-comercial.md",
                 mime="text/markdown",
             )
+            st.download_button(
+                "Descargar presentación PowerPoint",
+                data=build_presentation(audience, approved),
+                file_name="estudio-de-lanzamiento.pptx",
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            )
+
+
+def build_presentation(audience, approved):
+    from io import BytesIO
+
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import MSO_AUTO_SIZE
+    from pptx.util import Inches, Pt
+
+    deck = Presentation()
+    deck.slide_width = Inches(13.333)
+    deck.slide_height = Inches(7.5)
+    cover = deck.slides.add_slide(deck.slide_layouts[0])
+    cover.shapes.title.text = "Estudio de Lanzamiento"
+    cover.placeholders[1].text = f"Presentación comercial · {audience}"
+
+    for index, claim in enumerate(approved, start=1):
+        slide = deck.slides.add_slide(deck.slide_layouts[5])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor.from_string("EEF3F7")
+        slide.shapes.title.text = f"Aspecto comercial {index}"
+        box = slide.shapes.add_textbox(Inches(0.9), Inches(2), Inches(11.5), Inches(4.6))
+        frame = box.text_frame
+        frame.word_wrap = True
+        frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        frame.text = claim
+        for paragraph in frame.paragraphs:
+            paragraph.font.size = Pt(32)
+            paragraph.font.color.rgb = RGBColor.from_string("18354D")
+
+    output = BytesIO()
+    deck.save(output)
+    return output.getvalue()
 
 
 def review_signature(text, citation):
