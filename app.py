@@ -400,14 +400,58 @@ def apply_background():
         color: #fff;
     }
     .st-key-launch_panel {
-        background-color: #f8fbfff2;
+        background: linear-gradient(140deg, #e2f1f8f7, #bcd9eaf2);
         color-scheme: light;
-        border: 1px solid #e5edfa;
+        border: 1px solid #effaff;
         border-radius: 22px;
-        box-shadow: 0 18px 60px #04162855;
+        box-shadow: 0 18px 60px #04162855, inset 0 1px #ffffffb5;
+        backdrop-filter: blur(12px);
         padding: clamp(1rem, 3vw, 2.5rem);
         max-width: 54rem;
         margin-inline: auto;
+    }
+    .st-key-launch_panel [data-baseweb="input"],
+    .st-key-launch_panel [data-baseweb="textarea"],
+    .st-key-launch_panel [data-baseweb="select"] > div,
+    .st-key-launch_panel [data-testid="stFileUploaderDropzone"] {
+        background: #f8fcff;
+        border-color: #a1bfce;
+    }
+    .st-key-launch_panel input, .st-key-launch_panel textarea {
+        color: #102541;
+    }
+    .st-key-launch_panel [data-testid="stButton"] button,
+    .st-key-launch_panel [data-testid="stDownloadButton"] button,
+    .st-key-launch_panel [data-testid="stFileUploaderDropzone"] button,
+    .st-key-launch_panel [data-testid="stLinkButton"] a {
+        background: #287b70;
+        border: 1px solid #77cabd;
+        border-radius: .55rem;
+        color: #fff;
+        box-shadow: 0 2px 8px #175d5540;
+    }
+    .st-key-launch_panel [data-testid="stButton"] button p,
+    .st-key-launch_panel [data-testid="stDownloadButton"] button p,
+    .st-key-launch_panel [data-testid="stFileUploaderDropzone"] button p,
+    .st-key-launch_panel [data-testid="stLinkButton"] a p {
+        color: #fff;
+        font-weight: 650;
+    }
+    .st-key-launch_panel [data-testid="stButton"] button:not(:disabled):hover,
+    .st-key-launch_panel [data-testid="stDownloadButton"] button:not(:disabled):hover,
+    .st-key-launch_panel [data-testid="stFileUploaderDropzone"] button:not(:disabled):hover,
+    .st-key-launch_panel [data-testid="stLinkButton"] a:hover {
+        background: #1d635a;
+        border-color: #56ae9f;
+        color: #fff;
+    }
+    .st-key-launch_panel [data-testid="stButton"] button:disabled {
+        background: #d7e7ed;
+        border-color: #abc2cb;
+        box-shadow: none;
+    }
+    .st-key-launch_panel [data-testid="stButton"] button:disabled p {
+        color: #425d69;
     }
     .st-key-team_login {
         width: min(100%, 29rem);
