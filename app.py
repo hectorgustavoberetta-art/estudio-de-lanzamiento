@@ -126,7 +126,7 @@ def show_live_generation():
                 st.markdown(f"**Afirmación {index}**")
                 edited = st.text_area("Texto comercial", value=claim, key=f"{key}-text")
                 citation = st.text_area("Cita de la ficha", value=quote, key=f"{key}-quote").strip()
-                located = bool(citation) and citation in sheet
+                located = citation_is_in_sheet(citation, sheet)
                 if located:
                     st.info("Cita localizada. Comprobá que respalde el texto completo.")
                 else:
@@ -186,6 +186,32 @@ def build_presentation(audience, approved):
     output = BytesIO()
     deck.save(output)
     return output.getvalue()
+
+
+def citation_is_in_sheet(citation, sheet):
+    import re
+    import unicodedata
+
+    def normalize(text):
+        text = unicodedata.normalize("NFC", text)
+        return " ".join(text.split())
+
+    quoted = normalize(citation)
+    if not quoted:
+        return False
+    if quoted in normalize(sheet):
+        return True
+
+    # Markdown headings can be quoted inline as "Heading: body".
+    for section in re.split(r"(?m)(?=^#{1,6}[ \t]+)", sheet):
+        heading, separator, body = section.partition("\n")
+        if separator and re.match(r"^#{1,6}[ \t]+", heading):
+            title = normalize(heading.lstrip("#"))
+            prefix = f"{title}: "
+            excerpt = quoted.removeprefix(prefix)
+            if excerpt != quoted and excerpt and normalize(body).startswith(excerpt):
+                return True
+    return False
 
 
 def review_signature(text, citation):
