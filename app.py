@@ -358,8 +358,8 @@ def apply_background():
     .st-key-reset_toolbar [data-testid="stElementContainer"] {
         width: 100% !important;
     }
-    .st-key-reset_toolbar [data-testid="stPopover"] > button,
-    .st-key-reset_toolbar [data-testid="stButton"] > button,
+    .st-key-reset_toolbar [data-testid="stPopover"] button[aria-haspopup],
+    .st-key-reset_toolbar [data-testid="stButton"] button,
     .st-key-reset_toolbar .compare-nav {
         display: flex;
         justify-content: center;
@@ -376,7 +376,7 @@ def apply_background():
         line-height: 1.15;
         font-size: .875rem;
     }
-    .st-key-reset_toolbar [data-testid="stPopover"] > button svg {
+    .st-key-reset_toolbar [data-testid="stPopover"] button[aria-haspopup] svg {
         display: none;
     }
     .st-key-reset_toolbar .compare-nav {
@@ -440,15 +440,15 @@ def select_sheet_method(method):
 
 apply_background()
 with st.container(key="reset_toolbar"):
+    with st.popover("SEGURIDAD", width="stretch"):
+        st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
+        st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
     st.button("CARGAR FICHA", width="stretch", on_click=select_sheet_method, args=("Subir archivo",))
     st.button("BUSCAR DRON", width="stretch", on_click=select_sheet_method, args=("Buscar ficha e imágenes",))
     st.html('<a class="compare-nav" href="#comparacion-de-fichas-tecnicas">COMPARAR FICHAS</a>')
     with st.popover("REINICIAR EVALUACIÓN", width="stretch"):
         st.write("Se borrarán los datos y resultados de la evaluación actual.")
         st.button("Confirmar reinicio", on_click=reset_evaluation)
-    with st.popover("SEGURIDAD", width="stretch"):
-        st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
-        st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
 with st.container(key="launch_panel"):
     st.title("Estudio de Lanzamiento")
     show_live_generation()
