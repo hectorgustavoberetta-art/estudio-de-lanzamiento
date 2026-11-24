@@ -74,7 +74,7 @@ def show_live_generation():
     from hmac import compare_digest
 
     st.subheader("Cargar ficha técnica")
-    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto", "Buscar ficha e imágenes"], key=reset_key("Cómo querés cargar la ficha"), horizontal=True)
+    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto"], key=reset_key("Cómo querés cargar la ficha"), horizontal=True)
     sheet = ""
     try:
         config = st.secrets.get("generation", {})
@@ -84,11 +84,7 @@ def show_live_generation():
     access_code = config.get("access_code")
     entered = st.text_input("Código del equipo", key=reset_key("Código del equipo"), type="password")
     authorized = bool(access_code and entered and compare_digest(entered.encode(), access_code.encode()))
-    name = ""
-    if method == "Buscar ficha e imágenes":
-        name, sheet = show_discovery(api_key, authorized, config.get("discovery_model", "gpt-4.1-mini"))
-    else:
-        name = st.text_input("Nombre del producto", key=reset_key("Nombre del producto"), max_chars=100)
+    name = st.text_input("Nombre del producto", key=reset_key("Nombre del producto"), max_chars=100)
     if method == "Subir archivo":
         upload = st.file_uploader("Ficha técnica", key=reset_key("Ficha técnica"), type=["pdf", "docx", "txt"], max_upload_size=10)
         if upload is not None:
@@ -423,8 +419,36 @@ def select_sheet_method(method):
     st.session_state[reset_key("Cómo querés cargar la ficha")] = method
 
 
-def open_comparison():
-    st.session_state.active_view = "comparison"
+def open_view(view):
+    st.session_state.active_view = view
+
+
+def import_discovered_sheet(name, sheet, code):
+    select_sheet_method("Pegar texto")
+    st.session_state[reset_key("Nombre del producto")] = name[:100]
+    st.session_state[reset_key("Texto de la ficha técnica")] = sheet
+    st.session_state[reset_key("Código del equipo")] = code
+
+
+def show_search():
+    from hmac import compare_digest
+
+    st.title("Buscar dron")
+    try:
+        config = st.secrets.get("generation", {})
+    except FileNotFoundError:
+        config = {}
+    entered = st.text_input("Código del equipo", key=reset_key("Código para buscar"), type="password")
+    code = config.get("access_code")
+    authorized = bool(code and entered and compare_digest(entered.encode(), code.encode()))
+    name, sheet = show_discovery(config.get("api_key"), authorized, config.get("discovery_model", "gpt-4.1-mini"))
+    if name and sheet:
+        st.button(
+            "Abrir ficha en Estudio de Lanzamiento",
+            type="primary",
+            on_click=import_discovered_sheet,
+            args=(name, sheet, entered),
+        )
 
 
 apply_background()
@@ -433,14 +457,17 @@ with st.container(key="reset_toolbar"):
         st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
         st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
     st.button("CARGAR FICHA", width="stretch", on_click=select_sheet_method, args=("Subir archivo",))
-    st.button("BUSCAR DRON", width="stretch", on_click=select_sheet_method, args=("Buscar ficha e imágenes",))
-    st.button("COMPARAR FICHAS", width="stretch", on_click=open_comparison)
+    st.button("BUSCAR DRON", width="stretch", on_click=open_view, args=("search",))
+    st.button("COMPARAR FICHAS", width="stretch", on_click=open_view, args=("comparison",))
     with st.popover("REINICIAR EVALUACIÓN", width="stretch"):
         st.write("Se borrarán los datos y resultados de la evaluación actual.")
         st.button("Confirmar reinicio", on_click=reset_evaluation)
 with st.container(key="launch_panel"):
-    if st.session_state.get("active_view") == "comparison":
+    view = st.session_state.get("active_view")
+    if view == "comparison":
         show_comparison()
+    elif view == "search":
+        show_search()
     else:
         st.title("Estudio de Lanzamiento")
         show_live_generation()
