@@ -337,24 +337,46 @@ def apply_background():
         background-color: transparent;
     }
     .st-key-reset_toolbar {
-        max-width: 70rem;
-        margin: 0 0 1.25rem clamp(0rem, 3vw, 3rem);
+        width: min(15rem, 100%);
+        margin: 0 0 1.25rem auto;
+    }
+    @media (min-width: 1000px) {
+        .st-key-reset_toolbar {
+            position: fixed;
+            top: 6rem;
+            right: clamp(1.5rem, 3vw, 3rem);
+            z-index: 10;
+        }
+        .st-key-launch_panel {
+            width: calc(100% - 17rem);
+            margin-left: max(0px, calc((100% - 71rem) / 2)) !important;
+            margin-right: auto;
+        }
+    }
+    .st-key-reset_toolbar [data-testid="stPopover"],
+    .st-key-reset_toolbar [data-testid="stButton"] {
+        width: 100%;
     }
     .st-key-reset_toolbar [data-testid="stPopover"] > button,
     .st-key-reset_toolbar [data-testid="stButton"] > button,
     .st-key-reset_toolbar .compare-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
         width: 100%;
+        height: 3.5rem;
         min-height: 3.5rem;
+        padding: .5rem;
         box-sizing: border-box;
         border-radius: .55rem;
         text-align: center;
         line-height: 1.15;
         font-size: .875rem;
     }
+    .st-key-reset_toolbar [data-testid="stPopover"] > button svg {
+        display: none;
+    }
     .st-key-reset_toolbar .compare-nav {
-        display: grid;
-        place-items: center;
-        padding: .5rem;
         text-decoration: none;
         background: #164c87;
         border: 1px solid #81aad4;
@@ -415,19 +437,15 @@ def select_sheet_method(method):
 
 apply_background()
 with st.container(key="reset_toolbar"):
-    load_col, search_col, compare_col, reset_col, security_col = st.columns(5, gap="small")
-    load_col.button("CARGAR FICHA", on_click=select_sheet_method, args=("Subir archivo",))
-    search_col.button("BUSCAR DRON", on_click=select_sheet_method, args=("Buscar ficha e imágenes",))
-    with compare_col:
-        st.html('<a class="compare-nav" href="#comparacion-de-fichas-tecnicas">COMPARAR FICHAS</a>')
-    with reset_col:
-        with st.popover("REINICIAR EVALUACIÓN"):
-            st.write("Se borrarán los datos y resultados de la evaluación actual.")
-            st.button("Confirmar reinicio", on_click=reset_evaluation)
-    with security_col:
-        with st.popover("SEGURIDAD"):
-            st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
-            st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
+    st.button("CARGAR FICHA", on_click=select_sheet_method, args=("Subir archivo",))
+    st.button("BUSCAR DRON", on_click=select_sheet_method, args=("Buscar ficha e imágenes",))
+    st.html('<a class="compare-nav" href="#comparacion-de-fichas-tecnicas">COMPARAR FICHAS</a>')
+    with st.popover("REINICIAR EVALUACIÓN"):
+        st.write("Se borrarán los datos y resultados de la evaluación actual.")
+        st.button("Confirmar reinicio", on_click=reset_evaluation)
+    with st.popover("SEGURIDAD"):
+        st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
+        st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
 with st.container(key="launch_panel"):
     st.title("Estudio de Lanzamiento")
     show_live_generation()
