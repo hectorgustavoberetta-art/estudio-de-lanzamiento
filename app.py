@@ -158,6 +158,14 @@ def show_live_generation():
     if approved:
         st.subheader("Descargar informe y síntesis ejecutiva")
         metadata = report_metadata(name, audience, sheet)
+        with st.expander("Fotos para el fondo del PowerPoint"):
+            uploads = st.file_uploader(
+                "Fotos del dron", type=["png", "jpg", "jpeg"], accept_multiple_files=True,
+                max_upload_size=5, help="Subí hasta cuatro fotos. Sin fotos, se usa el collage ilustrativo.",
+            )
+            if len(uploads) > 4:
+                st.info("Se usarán las primeras cuatro fotos.")
+            photos = [upload.getvalue() for upload in uploads[:4]]
         word, powerpoint = st.columns(2)
         word.download_button(
             "Descargar Word", data=build_word(metadata, reviewed),
@@ -165,7 +173,7 @@ def show_live_generation():
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         powerpoint.download_button(
-            "Descargar PowerPoint", data=build_presentation(metadata, approved),
+            "Descargar PowerPoint", data=build_presentation(metadata, approved, photos),
             file_name=export_name(metadata, "pptx"),
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         )
