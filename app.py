@@ -73,8 +73,13 @@ def reset_key(label):
 def show_live_generation():
     from hmac import compare_digest
 
-    st.subheader("Cargar ficha técnica")
-    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto"], key=reset_key("Cómo querés cargar la ficha"), horizontal=True)
+    heading, artwork = st.columns([2, 1], gap="medium", vertical_alignment="center")
+    with heading:
+        st.title("ESTUDIO DE LANZAMIENTO")
+        st.subheader("Cargar ficha técnica")
+        method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto"], key=reset_key("Cómo querés cargar la ficha"), horizontal=True)
+    with artwork:
+        st.html('<div class="launch-drone-image" role="img" aria-label="Dron de inspección con cámara"></div>')
     sheet = ""
     try:
         config = st.secrets.get("generation", {})
@@ -321,9 +326,10 @@ def apply_background():
     st.html("""
     <style>
     [data-testid="stAppViewContainer"] {
+        --drone-collage: url("data:image/png;base64,IMAGE_DATA");
         background-color: #061a32;
         background-image: linear-gradient(180deg, #061a3240, #061a3266),
-                          url("data:image/png;base64,IMAGE_DATA");
+                          var(--drone-collage);
         background-size: cover;
         background-position: center top;
         background-attachment: fixed;
@@ -399,6 +405,18 @@ def apply_background():
         max-width: 54rem;
         margin-inline: auto;
     }
+    .launch-drone-image {
+        width: 100%;
+        aspect-ratio: 7 / 5;
+        border: 1px solid #174b71;
+        border-radius: .65rem;
+        background: var(--drone-collage) 13% 63% / 400% auto no-repeat;
+    }
+    .st-key-launch_panel h1#estudio-de-lanzamiento {
+        font-size: clamp(1.65rem, 2.6vw, 2.35rem);
+        font-weight: 800;
+        line-height: 1.1;
+    }
     .st-key-launch_panel h1, .st-key-launch_panel h2,
     .st-key-launch_panel h3, .st-key-launch_panel label,
     .st-key-launch_panel p {
@@ -469,5 +487,4 @@ with st.container(key="launch_panel"):
     elif view == "search":
         show_search()
     else:
-        st.title("Estudio de Lanzamiento")
         show_live_generation()
