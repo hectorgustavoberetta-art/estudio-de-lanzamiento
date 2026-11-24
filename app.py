@@ -119,7 +119,7 @@ def show_live_generation():
         if not saved[2]:
             st.info("La API no devolvió afirmaciones con citas para revisar.")
         approved = []
-        version = st.session_state.review_version
+        version = st.session_state.get("review_version", 0)
         for index, (claim, quote) in enumerate(saved[2], start=1):
             key = f"review-{version}-{index}"
             with st.container(border=True):
