@@ -40,15 +40,19 @@ def sourced_sheet(response):
     return sheet if sources else "", list(sources)
 
 
+def reset_key(label):
+    return f"evaluation-{st.session_state.get('evaluation_revision', 0)}-{label}"
+
+
 def show_discovery(api_key, authorized, model):
     st.caption("Buscá especificaciones de drones civiles. La consulta y la foto, si la cargás, se envían a OpenAI.")
-    method = st.radio("Tipo de búsqueda", ["Marca y modelo", "Reconocer desde una foto"], horizontal=True)
+    method = st.radio("Tipo de búsqueda", ["Marca y modelo", "Reconocer desde una foto"], key=reset_key("Tipo de búsqueda"), horizontal=True)
     if not authorized or not api_key:
         st.info("Ingresá el código del equipo para iniciar la búsqueda.")
         return "", ""
 
     if method == "Reconocer desde una foto":
-        photo = st.file_uploader("Foto del dron", type=["png", "jpg", "jpeg"], max_upload_size=5)
+        photo = st.file_uploader("Foto del dron", key=reset_key("Foto del dron"), type=["png", "jpg", "jpeg"], max_upload_size=5)
         if st.button("Sugerir modelos", disabled=photo is None):
             st.session_state.pop("drone_candidates", None)
             try:
@@ -81,9 +85,9 @@ def show_discovery(api_key, authorized, model):
         if not saved or photo is None or saved[0] != photo.file_id or not saved[1]:
             return "", ""
         st.caption("Los candidatos son sugerencias. Confirmá visualmente el modelo antes de buscar.")
-        name = st.selectbox("Seleccioná el modelo que reconocés", saved[1], index=None)
+        name = st.selectbox("Seleccioná el modelo que reconocés", saved[1], key=reset_key("Seleccioná el modelo que reconocés"), index=None)
     else:
-        name = st.text_input("Marca y modelo", max_chars=100).strip()
+        name = st.text_input("Marca y modelo", key=reset_key("Marca y modelo"), max_chars=100).strip()
 
     if st.button("Buscar ficha e imágenes", disabled=not name):
         st.session_state.pop("drone_lookup", None)
