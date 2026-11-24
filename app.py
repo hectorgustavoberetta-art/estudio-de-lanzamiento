@@ -1,48 +1,7 @@
-from pathlib import Path
-
 import streamlit as st
 
 st.set_page_config(page_title="Estudio de Lanzamiento", layout="wide")
 st.title("Estudio de Lanzamiento")
-st.caption("Prototipo académico · Caso ficticio de inspección industrial")
-
-source_path = Path(__file__).parent / "demo" / "ficha-inspecta-i1.md"
-source = source_path.read_text(encoding="utf-8")
-sections = dict(
-    section.split("\n", 1)
-    for section in source.split("\n## ")[1:]
-)
-
-source_panel, preview = st.columns([1, 1], gap="large")
-with source_panel:
-    st.subheader("Ficha original")
-    st.markdown(source)
-
-with preview:
-    st.subheader("Vista comercial")
-    audience = st.radio("Público", ["Cliente final", "Distribuidor"], horizontal=True)
-    st.caption("Vista de ejemplo con textos preparados.")
-    st.markdown("### Inspecta I1")
-    if audience == "Cliente final":
-        st.write("Documentá condiciones visibles de cubiertas y fachadas para que el equipo de mantenimiento revise las imágenes.")
-        claims = ["Aplicación", "Registro de imágenes", "Autonomía declarada"]
-    else:
-        st.write("Presentá el kit de inspección a tus clientes con el equipamiento incluido y las condiciones comerciales por confirmar.")
-        claims = ["Contenido del kit", "Condiciones comerciales", "Autonomía declarada"]
-
-    for heading in claims:
-        with st.expander(heading):
-            st.write(sections[heading].strip())
-
-    st.warning("Afirmación de prueba pendiente de revisión: «32 minutos garantizados»")
-    correction = st.text_input("Texto corregido", value="Hasta 32 minutos en condiciones de ensayo.")
-    if st.button("Revisar corrección"):
-        supported = correction.rstrip(".").strip().casefold() == "hasta 32 minutos en condiciones de ensayo"
-        if supported:
-            st.success("La corrección de prueba conserva el límite y las condiciones de ensayo.")
-        else:
-            st.info("Compará el texto con el apartado Autonomía declarada antes de aprobarlo.")
-
 
 
 def generate_copy(api_key, model, audience, sheet):
@@ -85,9 +44,53 @@ def generate_copy(api_key, model, audience, sheet):
     ]
 
 
+def extract_sheet(upload):
+    extension = upload.name.lower().rsplit(".", 1)[-1]
+    if extension == "pdf":
+        from pypdf import PdfReader
+
+        return "\n\n".join(page.extract_text() or "" for page in PdfReader(upload).pages)
+    if extension == "docx":
+        from docx import Document
+
+        document = Document(upload)
+        return "\n".join(
+            "".join(paragraph.xpath(".//w:t/text()"))
+            for paragraph in document.element.body.xpath(".//w:p")
+        )
+    return upload.getvalue().decode("utf-8-sig")
+
+
 def show_live_generation():
     from hmac import compare_digest
 
+    st.subheader("Cargar ficha técnica")
+    name = st.text_input("Nombre del producto", max_chars=100)
+    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto"], horizontal=True)
+    sheet = ""
+    if method == "Subir archivo":
+        upload = st.file_uploader("Ficha técnica", type=["pdf", "docx", "txt"], max_upload_size=10)
+        if upload is not None:
+            try:
+                sheet = extract_sheet(upload)
+            except Exception:
+                st.error("No pudimos leer el archivo. Probá pegar el texto de la ficha.")
+                return
+            if not sheet.strip():
+                st.warning("El archivo no contiene texto extraíble. Si es un PDF escaneado, pegá el texto de la ficha.")
+    else:
+        sheet = st.text_area("Texto de la ficha técnica", height=220)
+
+    name = name.strip()
+    sheet = sheet.strip()
+    if not sheet or not name:
+        return
+    if len(sheet) > 9000:
+        st.warning("La ficha supera los 9.000 caracteres. Pegá las secciones relevantes para esta pieza comercial.")
+        return
+
+    st.subheader("Generar con IA")
+    audience = st.radio("Público", ["Cliente final", "Distribuidor"], horizontal=True)
     try:
         config = st.secrets.get("generation", {})
     except FileNotFoundError:
@@ -95,67 +98,84 @@ def show_live_generation():
     api_key = config.get("api_key")
     access_code = config.get("access_code")
     if not api_key or not access_code:
+        st.info("La generación con IA todavía no está configurada.")
         return
 
-    with st.expander("Generación con IA · Acceso del equipo"):
-        entered = st.text_input("Código del equipo", type="password")
-        if not entered or not compare_digest(entered.encode(), access_code.encode()):
-            return
-        st.caption("El texto de esta ficha se envía a OpenAI para generar el borrador.")
-        sheet = st.text_area("Texto de la ficha técnica", value=source, max_chars=9000, height=220)
-        if st.button("Generar borrador", disabled=not sheet.strip()):
-            st.session_state.pop("live_generation", None)
-            try:
-                with st.spinner("Generando el borrador comercial…"):
-                    claims = generate_copy(api_key, config.get("model", "gpt-4o-mini"), audience, sheet)
-                st.session_state.review_version = st.session_state.get("review_version", 0) + 1
-                st.session_state.live_generation = (audience, sheet, claims)
-            except (OSError, ValueError, KeyError, IndexError, TypeError):
-                st.error("La generación no se completó. Revisá la configuración o volvé a intentar.")
+    entered = st.text_input("Código del equipo", type="password")
+    if not entered or not compare_digest(entered.encode(), access_code.encode()):
+        return
+    st.caption("El texto de la ficha se envía a OpenAI al generar el borrador.")
+    context = (name, audience, sheet)
+    if st.button("Generar borrador", type="primary"):
+        st.session_state.pop("product_generation", None)
+        try:
+            with st.spinner("Generando el borrador comercial…"):
+                claims = generate_copy(api_key, config.get("model", "gpt-4o-mini"), audience, sheet)
+            st.session_state.review_version = st.session_state.get("review_version", 0) + 1
+            st.session_state.product_generation = (context, claims)
+        except (OSError, ValueError, KeyError, IndexError, TypeError):
+            st.error("La generación no se completó. Revisá la configuración o volvé a intentar.")
 
-        saved = st.session_state.get("live_generation")
-        if saved is None or saved[:2] != (audience, sheet):
-            return
-        st.caption("La comprobación busca la cita literal. Revisá si esa cita respalda toda la afirmación.")
-        if not saved[2]:
-            st.info("La API no devolvió afirmaciones con citas para revisar.")
-        approved = []
-        version = st.session_state.get("review_version", 0)
-        for index, (claim, quote) in enumerate(saved[2], start=1):
-            key = f"review-{version}-{index}"
-            with st.container(border=True):
-                st.markdown(f"**Afirmación {index}**")
-                edited = st.text_area("Texto comercial", value=claim, key=f"{key}-text")
-                citation = st.text_area("Cita de la ficha", value=quote, key=f"{key}-quote").strip()
-                located = citation_is_in_sheet(citation, sheet)
-                if located:
-                    st.info("Cita localizada. Comprobá que respalde el texto completo.")
-                else:
-                    st.warning("Cita no localizada. Copiá un fragmento literal de la ficha.")
-                # An approval belongs to this exact pair of text and evidence.
-                if located and edited.strip() and st.checkbox(
-                    "Apruebo esta afirmación",
-                    key=f"{key}-approval-{review_signature(edited, citation)}",
-                ):
-                    approved.append(edited.strip())
+    saved = st.session_state.get("product_generation")
+    if saved is None or saved[0] != context:
+        return
+    st.subheader(f"Revisión comercial · {name}")
+    with st.expander("Ver ficha técnica cargada"):
+        st.text(sheet)
+    if not saved[1]:
+        st.info("La API no devolvió afirmaciones con citas para revisar.")
+        return
+    st.caption("Revisá que la cita respalde la afirmación completa antes de aprobarla.")
+    approved = []
+    version = st.session_state.get("review_version", 0)
+    for index, (claim, quote) in enumerate(saved[1], start=1):
+        key = f"product-review-{version}-{index}"
+        with st.container(border=True):
+            st.markdown(f"**Afirmación {index}**")
+            edited = st.text_area("Texto comercial", value=claim, key=f"{key}-text")
+            citation = st.text_area("Cita de la ficha", value=quote, key=f"{key}-quote").strip()
+            located = citation_is_in_sheet(citation, sheet)
+            if located:
+                st.info("Cita localizada")
+            else:
+                st.warning("Cita no localizada. Copiá un fragmento literal de la ficha.")
+            if located and edited.strip() and st.checkbox(
+                "Apruebo esta afirmación",
+                key=f"{key}-approval-{review_signature(edited, citation)}",
+            ):
+                approved.append(edited.strip())
 
-        if approved:
-            body = "\n\n".join(f"- {claim}" for claim in approved)
-            st.download_button(
-                "Descargar texto comercial aprobado",
-                data=f"# Material comercial · {audience}\n\n{body}\n",
-                file_name="material-comercial.md",
-                mime="text/markdown",
-            )
-            st.download_button(
-                "Descargar presentación PowerPoint",
-                data=build_presentation(audience, approved),
-                file_name="estudio-de-lanzamiento.pptx",
-                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            )
+    if approved:
+        st.subheader("Descargar material aprobado")
+        word, powerpoint = st.columns(2)
+        word.download_button(
+            "Descargar Word", data=build_word(name, audience, approved),
+            file_name="material-comercial.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        powerpoint.download_button(
+            "Descargar PowerPoint", data=build_presentation(name, audience, approved),
+            file_name="presentacion-comercial.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        )
 
 
-def build_presentation(audience, approved):
+def build_word(name, audience, approved):
+    from io import BytesIO
+
+    from docx import Document
+
+    document = Document()
+    document.add_heading(name, level=0)
+    document.add_paragraph(f"Material comercial · {audience}")
+    for claim in approved:
+        document.add_paragraph(claim, style="List Bullet")
+    output = BytesIO()
+    document.save(output)
+    return output.getvalue()
+
+
+def build_presentation(name, audience, approved):
     from io import BytesIO
 
     from pptx import Presentation
@@ -167,7 +187,7 @@ def build_presentation(audience, approved):
     deck.slide_width = Inches(13.333)
     deck.slide_height = Inches(7.5)
     cover = deck.slides.add_slide(deck.slide_layouts[0])
-    cover.shapes.title.text = "Estudio de Lanzamiento"
+    cover.shapes.title.text = name
     cover.placeholders[1].text = f"Presentación comercial · {audience}"
 
     for index, claim in enumerate(approved, start=1):
