@@ -1,7 +1,9 @@
+from base64 import b64encode
+from pathlib import Path
+
 import streamlit as st
 
 st.set_page_config(page_title="Estudio de Lanzamiento", layout="wide")
-st.title("Estudio de Lanzamiento")
 
 
 def generate_copy(api_key, model, audience, sheet):
@@ -246,4 +248,45 @@ def review_signature(text, citation):
     return hashlib.sha256(pair.encode("utf-8")).hexdigest()
 
 
-show_live_generation()
+def apply_background():
+    image_path = Path(__file__).with_name("fondo-drones.png")
+    if not image_path.is_file():
+        return
+
+    encoded = b64encode(image_path.read_bytes()).decode("ascii")
+    st.html("""
+    <style>
+    [data-testid="stAppViewContainer"] {
+        background-color: #061a32;
+        background-image: linear-gradient(180deg, #061a3240, #061a3266),
+                          url("data:image/png;base64,IMAGE_DATA");
+        background-size: cover;
+        background-position: center top;
+        background-attachment: fixed;
+    }
+    [data-testid="stHeader"] {
+        background-color: transparent;
+    }
+    .st-key-launch_panel {
+        background-color: #f8fbfff2;
+        color-scheme: light;
+        border: 1px solid #e5edfa;
+        border-radius: 22px;
+        box-shadow: 0 18px 60px #04162855;
+        padding: clamp(1rem, 3vw, 2.5rem);
+        max-width: 54rem;
+        margin-inline: auto;
+    }
+    .st-key-launch_panel h1, .st-key-launch_panel h2,
+    .st-key-launch_panel h3, .st-key-launch_panel label,
+    .st-key-launch_panel p {
+        color: #102541;
+    }
+    </style>
+    """.replace("IMAGE_DATA", encoded))
+
+
+apply_background()
+with st.container(key="launch_panel"):
+    st.title("Estudio de Lanzamiento")
+    show_live_generation()
