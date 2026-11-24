@@ -6,7 +6,7 @@ from pathlib import Path
 import streamlit as st
 
 from discovery import show_discovery
-from reports import build_presentation, build_word, export_name, report_metadata
+from reports import build_comparison_word, build_presentation, build_word, export_name, report_metadata
 
 st.set_page_config(page_title="Estudio de Lanzamiento", layout="wide")
 
@@ -316,6 +316,14 @@ def show_comparison(config):
     if saved and saved[0] == context:
         st.caption(f"Ficha A · {first.name}  |  Ficha B · {second.name}")
         st.table(saved[1])
+        st.download_button(
+            "Descargar comparación en Word",
+            data=build_comparison_word(first.name, second.name, saved[1]),
+            file_name="Comparacion_de_fichas_tecnicas.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            icon=":material/download:",
+            on_click="ignore",
+        )
 
 
 def apply_background():
