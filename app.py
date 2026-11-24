@@ -1,4 +1,6 @@
 from base64 import b64encode
+from hashlib import sha256
+from hmac import compare_digest
 from pathlib import Path
 
 import streamlit as st
@@ -70,9 +72,7 @@ def reset_key(label):
     return f"evaluation-{st.session_state.get('evaluation_revision', 0)}-{label}"
 
 
-def show_live_generation():
-    from hmac import compare_digest
-
+def show_live_generation(config):
     heading, artwork = st.columns([2, 1], gap="medium", vertical_alignment="center")
     with heading:
         st.title("ESTUDIO DE LANZAMIENTO")
@@ -90,14 +90,7 @@ def show_live_generation():
                 )
                 st.image(logistics_drone, width="stretch")
     sheet = ""
-    try:
-        config = st.secrets.get("generation", {})
-    except FileNotFoundError:
-        config = {}
     api_key = config.get("api_key")
-    access_code = config.get("access_code")
-    entered = st.text_input("Código del equipo", key=reset_key("Código del equipo"), type="password")
-    authorized = bool(access_code and entered and compare_digest(entered.encode(), access_code.encode()))
     name = st.text_input("Nombre del producto", key=reset_key("Nombre del producto"), max_chars=100)
     if method == "Subir archivo":
         upload = st.file_uploader("Ficha técnica", key=reset_key("Ficha técnica"), type=["pdf", "docx", "txt"], max_upload_size=10)
@@ -127,11 +120,8 @@ def show_live_generation():
         if len(sheet) > 9000:
             st.warning("La ficha supera los 9.000 caracteres. Pegá las secciones relevantes.")
             return
-        if not api_key or not access_code:
+        if not api_key:
             st.info("La generación con IA todavía no está configurada.")
-            return
-        if not authorized:
-            st.warning("Ingresá el código del equipo para generar el borrador.")
             return
         st.session_state.pop("product_generation", None)
         try:
@@ -143,7 +133,7 @@ def show_live_generation():
             st.error("La generación no se completó. Revisá la configuración o volvé a intentar.")
 
     saved = st.session_state.get("product_generation")
-    if not authorized or saved is None or saved[0] != context:
+    if saved is None or saved[0] != context:
         return
     st.subheader(f"Revisión comercial · {name}")
     with st.expander("Ver ficha técnica cargada"):
@@ -278,9 +268,7 @@ def compare_specs(api_key, model, sheets):
     return rows
 
 
-def show_comparison():
-    from hmac import compare_digest
-
+def show_comparison(config):
     from PIL import Image, ImageOps
 
     heading, gallery = st.columns([3, 2], gap="medium", vertical_alignment="center")
@@ -300,13 +288,6 @@ def show_comparison():
     left, right = st.columns(2)
     first = left.file_uploader("Ficha del dron A", key=reset_key("Ficha del dron A"), type=["pdf", "docx", "txt"], max_upload_size=10)
     second = right.file_uploader("Ficha del dron B", key=reset_key("Ficha del dron B"), type=["pdf", "docx", "txt"], max_upload_size=10)
-    try:
-        config = st.secrets.get("generation", {})
-    except FileNotFoundError:
-        config = {}
-    entered = st.text_input("Código del equipo para comparar", key=reset_key("Código del equipo para comparar"), type="password")
-    code = config.get("access_code")
-    authorized = bool(code and entered and compare_digest(entered.encode(), code.encode()))
     context = (first.file_id, second.file_id) if first is not None and second is not None else None
     st.caption("Al comparar, el texto de ambas fichas se envía a OpenAI.")
     if st.button("Comparar fichas", type="primary"):
@@ -314,11 +295,8 @@ def show_comparison():
         if context is None:
             st.warning("Cargá la ficha del dron A y la del dron B.")
             return
-        if not config.get("api_key") or not code:
+        if not config.get("api_key"):
             st.info("La comparación todavía no está configurada.")
-            return
-        if not authorized:
-            st.warning("Ingresá el código del equipo para comparar.")
             return
         try:
             sheets = [extract_sheet(upload).strip() for upload in (first, second)]
@@ -335,24 +313,27 @@ def show_comparison():
         except (OSError, ValueError, KeyError, IndexError, TypeError):
             st.error("No se pudo completar la comparación. Volvé a intentar.")
     saved = st.session_state.get("comparison_result")
-    if authorized and saved and saved[0] == context:
+    if saved and saved[0] == context:
         st.caption(f"Ficha A · {first.name}  |  Ficha B · {second.name}")
         st.table(saved[1])
 
 
 def apply_background():
-    image_path = Path(__file__).with_name("fondo-drones.png")
-    if not image_path.is_file():
-        return
-
-    encoded = b64encode(image_path.read_bytes()).decode("ascii")
+    image_path = Path(__file__).with_name("base-logistica.jpg.b64")
+    if image_path.is_file():
+        background = "url(data:image/jpeg;base64," + image_path.read_text(encoding="ascii").strip() + ")"
+    else:
+        collage = Path(__file__).with_name("fondo-drones.png")
+        background = "none"
+        if collage.is_file():
+            background = "url(data:image/png;base64," + b64encode(collage.read_bytes()).decode("ascii") + ")"
     st.html("""
     <style>
     [data-testid="stAppViewContainer"] {
-        --drone-collage: url("data:image/png;base64,IMAGE_DATA");
+        --drone-background: BACKGROUND_IMAGE;
         background-color: #061a32;
         background-image: linear-gradient(180deg, #061a3240, #061a3266),
-                          var(--drone-collage);
+                          var(--drone-background);
         background-size: cover;
         background-position: center top;
         background-attachment: fixed;
@@ -428,6 +409,18 @@ def apply_background():
         max-width: 54rem;
         margin-inline: auto;
     }
+    .st-key-team_login {
+        width: min(100%, 29rem);
+        margin: clamp(2rem, 14vh, 10rem) auto 0;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        background: #f8fbfff2;
+        color: #102541;
+    }
+    .st-key-team_login h1 {
+        color: #102541;
+        font-size: 1.75rem;
+    }
     .st-key-launch_panel h1#estudio-de-lanzamiento,
     .st-key-launch_panel h1#buscar-dron {
         font-size: clamp(1.65rem, 2.6vw, 2.35rem);
@@ -445,7 +438,7 @@ def apply_background():
         color: #102541;
     }
     </style>
-    """.replace("IMAGE_DATA", encoded))
+    """.replace("BACKGROUND_IMAGE", background))
 
 
 def reset_evaluation():
@@ -463,16 +456,13 @@ def open_view(view):
     st.session_state.active_view = view
 
 
-def import_discovered_sheet(name, sheet, code):
+def import_discovered_sheet(name, sheet):
     select_sheet_method("Pegar texto")
     st.session_state[reset_key("Nombre del producto")] = name[:100]
     st.session_state[reset_key("Texto de la ficha técnica")] = sheet
-    st.session_state[reset_key("Código del equipo")] = code
 
 
-def show_search():
-    from hmac import compare_digest
-
+def show_search(config):
     from PIL import Image, ImageOps
 
     heading, gallery = st.columns([1, 2], gap="medium", vertical_alignment="center")
@@ -488,24 +478,51 @@ def show_search():
                 )
                 # Keep all thumbnails at the same aspect ratio without stretching the drones.
                 column.image(ImageOps.fit(drone, (400, 270)), width="stretch")
-    try:
-        config = st.secrets.get("generation", {})
-    except FileNotFoundError:
-        config = {}
-    entered = st.text_input("Código del equipo", key=reset_key("Código para buscar"), type="password")
-    code = config.get("access_code")
-    authorized = bool(code and entered and compare_digest(entered.encode(), code.encode()))
-    name, sheet = show_discovery(config.get("api_key"), authorized, config.get("discovery_model", "gpt-4.1-mini"))
+    name, sheet = show_discovery(config.get("api_key"), True, config.get("discovery_model", "gpt-4.1-mini"))
     if name and sheet:
         st.button(
             "Abrir ficha en Estudio de Lanzamiento",
             type="primary",
             on_click=import_discovered_sheet,
-            args=(name, sheet, entered),
+            args=(name, sheet),
         )
 
 
+def load_generation_config():
+    try:
+        return st.secrets.get("generation", {})
+    except FileNotFoundError:
+        return {}
+
+
+def require_team_access(config):
+    code = config.get("access_code")
+    if isinstance(code, str) and code:
+        fingerprint = sha256(code.encode()).hexdigest()
+        if compare_digest(st.session_state.get("team_access", ""), fingerprint):
+            return
+    else:
+        fingerprint = None
+
+    with st.container(key="team_login"):
+        st.title("INGRESÁ EL CÓDIGO DEL EQUIPO")
+        if fingerprint is None:
+            st.info("El acceso del equipo todavía no está configurado.")
+        else:
+            with st.form("team_access_form", clear_on_submit=True):
+                entered = st.text_input("Código del equipo", type="password")
+                submitted = st.form_submit_button("Ingresar", type="primary")
+            if submitted:
+                if compare_digest(sha256(entered.encode()).hexdigest(), fingerprint):
+                    st.session_state.team_access = fingerprint
+                    st.rerun()
+                st.error("El código del equipo es incorrecto.")
+    st.stop()
+
+
 apply_background()
+config = load_generation_config()
+require_team_access(config)
 with st.container(key="reset_toolbar"):
     with st.popover("SEGURIDAD", width="stretch"):
         st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
@@ -519,8 +536,8 @@ with st.container(key="reset_toolbar"):
 with st.container(key="launch_panel"):
     view = st.session_state.get("active_view")
     if view == "comparison":
-        show_comparison()
+        show_comparison(config)
     elif view == "search":
-        show_search()
+        show_search(config)
     else:
-        show_live_generation()
+        show_live_generation(config)
