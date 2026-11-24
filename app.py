@@ -344,9 +344,18 @@ def apply_background():
         margin-bottom: 1rem;
     }
     .st-key-reset_toolbar button {
-        background: #f8fbff;
-        color: #102541;
-        border: 1px solid #9bb3d1;
+        background: #164c87;
+        color: #fff;
+        border: 1px solid #81aad4;
+    }
+    .st-key-reset_toolbar button p {
+        color: #fff;
+        font-weight: 800;
+    }
+    .st-key-reset_toolbar button:hover,
+    .st-key-reset_toolbar button:focus-visible {
+        background: #103965;
+        color: #fff;
     }
     .st-key-launch_panel {
         background-color: #f8fbfff2;
@@ -376,10 +385,13 @@ def reset_evaluation():
 apply_background()
 with st.container(key="reset_toolbar"):
     st.button(
-        "Reiniciar evaluación",
+        "REINICIAR EVALUACIÓN",
         on_click=reset_evaluation,
         help="Borra los datos cargados, los resultados y el código ingresado en esta sesión.",
     )
+    with st.popover("SEGURIDAD"):
+        st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
+        st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
 with st.container(key="launch_panel"):
     st.title("Estudio de Lanzamiento")
     show_live_generation()
