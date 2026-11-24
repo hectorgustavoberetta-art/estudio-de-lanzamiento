@@ -3,6 +3,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from reports import build_presentation, build_word, export_name, report_metadata
+
 st.set_page_config(page_title="Estudio de Lanzamiento", layout="wide")
 
 
@@ -132,6 +134,7 @@ def show_live_generation():
         return
     st.caption("Revisá que la cita respalde la afirmación completa antes de aprobarla.")
     approved = []
+    reviewed = []
     version = st.session_state.get("review_version", 0)
     for index, (claim, quote) in enumerate(saved[1], start=1):
         key = f"product-review-{version}-{index}"
@@ -144,74 +147,28 @@ def show_live_generation():
                 st.info("Cita localizada")
             else:
                 st.warning("Cita no localizada. Copiá un fragmento literal de la ficha.")
-            if located and edited.strip() and st.checkbox(
+            accepted = bool(located and edited.strip() and st.checkbox(
                 "Apruebo esta afirmación",
                 key=f"{key}-approval-{review_signature(edited, citation)}",
-            ):
-                approved.append(edited.strip())
+            ))
+            reviewed.append((edited.strip(), citation, accepted, located))
+            if accepted:
+                approved.append((edited.strip(), citation))
 
     if approved:
-        st.subheader("Descargar material aprobado")
+        st.subheader("Descargar informe y síntesis ejecutiva")
+        metadata = report_metadata(name, audience, sheet)
         word, powerpoint = st.columns(2)
         word.download_button(
-            "Descargar Word", data=build_word(name, audience, approved),
-            file_name="material-comercial.docx",
+            "Descargar Word", data=build_word(metadata, reviewed),
+            file_name=export_name(metadata, "docx"),
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         powerpoint.download_button(
-            "Descargar PowerPoint", data=build_presentation(name, audience, approved),
-            file_name="presentacion-comercial.pptx",
+            "Descargar PowerPoint", data=build_presentation(metadata, approved),
+            file_name=export_name(metadata, "pptx"),
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         )
-
-
-def build_word(name, audience, approved):
-    from io import BytesIO
-
-    from docx import Document
-
-    document = Document()
-    document.add_heading(name, level=0)
-    document.add_paragraph(f"Material comercial · {audience}")
-    for claim in approved:
-        document.add_paragraph(claim, style="List Bullet")
-    output = BytesIO()
-    document.save(output)
-    return output.getvalue()
-
-
-def build_presentation(name, audience, approved):
-    from io import BytesIO
-
-    from pptx import Presentation
-    from pptx.dml.color import RGBColor
-    from pptx.enum.text import MSO_AUTO_SIZE
-    from pptx.util import Inches, Pt
-
-    deck = Presentation()
-    deck.slide_width = Inches(13.333)
-    deck.slide_height = Inches(7.5)
-    cover = deck.slides.add_slide(deck.slide_layouts[0])
-    cover.shapes.title.text = name
-    cover.placeholders[1].text = f"Presentación comercial · {audience}"
-
-    for index, claim in enumerate(approved, start=1):
-        slide = deck.slides.add_slide(deck.slide_layouts[5])
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = RGBColor.from_string("EEF3F7")
-        slide.shapes.title.text = f"Aspecto comercial {index}"
-        box = slide.shapes.add_textbox(Inches(0.9), Inches(2), Inches(11.5), Inches(4.6))
-        frame = box.text_frame
-        frame.word_wrap = True
-        frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
-        frame.text = claim
-        for paragraph in frame.paragraphs:
-            paragraph.font.size = Pt(32)
-            paragraph.font.color.rgb = RGBColor.from_string("18354D")
-
-    output = BytesIO()
-    deck.save(output)
-    return output.getvalue()
 
 
 def citation_is_in_sheet(citation, sheet):
