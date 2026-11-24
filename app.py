@@ -414,7 +414,8 @@ def apply_background():
         max-width: 54rem;
         margin-inline: auto;
     }
-    .st-key-launch_panel h1#estudio-de-lanzamiento {
+    .st-key-launch_panel h1#estudio-de-lanzamiento,
+    .st-key-launch_panel h1#buscar-dron {
         font-size: clamp(1.65rem, 2.6vw, 2.35rem);
         font-weight: 800;
         line-height: 1.1;
@@ -453,7 +454,21 @@ def import_discovered_sheet(name, sheet, code):
 def show_search():
     from hmac import compare_digest
 
-    st.title("Buscar dron")
+    from PIL import Image, ImageOps
+
+    heading, gallery = st.columns([1, 2], gap="medium", vertical_alignment="center")
+    heading.title("BUSCAR DRON")
+    collage = Path(__file__).with_name("fondo-drones.png")
+    if collage.is_file():
+        with gallery, Image.open(collage) as image:
+            columns = st.columns(3, gap="small")
+            width, height = image.size
+            for column, (left, top, right, bottom) in zip(columns, [[0.09,0.22,0.32,0.37],[0.63,0.25,0.85,0.52],[0.67,0.48,0.87,0.65]]):
+                drone = image.crop(
+                    (round(width * left), round(height * top), round(width * right), round(height * bottom))
+                )
+                # Keep all thumbnails at the same aspect ratio without stretching the drones.
+                column.image(ImageOps.fit(drone, (400, 270)), width="stretch")
     try:
         config = st.secrets.get("generation", {})
     except FileNotFoundError:
