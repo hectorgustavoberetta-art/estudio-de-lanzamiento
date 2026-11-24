@@ -21,7 +21,7 @@ with source_panel:
 with preview:
     st.subheader("Vista comercial")
     audience = st.radio("Público", ["Cliente final", "Distribuidor"], horizontal=True)
-    st.caption("Vista de prueba con textos preparados. Generación por IA pendiente.")
+    st.caption("Vista de ejemplo con textos preparados.")
     st.markdown("### Inspecta I1")
     if audience == "Cliente final":
         st.write("Documentá condiciones visibles de cubiertas y fachadas para que el equipo de mantenimiento revise las imágenes.")
@@ -60,7 +60,7 @@ def generate_copy(api_key, model, audience, sheet):
                 "Devolvé un objeto JSON con una lista claims de hasta cuatro objetos "
                 "con los campos text y quote. Cada text debe expresar una afirmación "
                 "respaldada por una cita literal continua en quote. Conservá límites, "
-                "unidades y condiciones. Omití atributos ausentes."
+                "unidades y condiciones. Evitá calificativos de calidad y promesas de uso que la cita no respalde. Omití atributos ausentes."
             )},
             {"role": "user", "content": json.dumps({"audience": audience, "sheet": sheet}, ensure_ascii=False)},
         ],
@@ -107,6 +107,7 @@ def show_live_generation():
             try:
                 with st.spinner("Generando el borrador comercial…"):
                     claims = generate_copy(api_key, config.get("model", "gpt-4o-mini"), audience, sheet)
+                st.session_state.review_version = st.session_state.get("review_version", 0) + 1
                 st.session_state.live_generation = (audience, sheet, claims)
             except (OSError, ValueError, KeyError, IndexError, TypeError):
                 st.error("La generación no se completó. Revisá la configuración o volvé a intentar.")
@@ -117,13 +118,42 @@ def show_live_generation():
         st.caption("La comprobación busca la cita literal. Revisá si esa cita respalda toda la afirmación.")
         if not saved[2]:
             st.info("La API no devolvió afirmaciones con citas para revisar.")
-        for claim, quote in saved[2]:
-            st.write(claim)
-            if quote in sheet:
-                st.info("Cita localizada en la ficha")
-                st.text(quote)
-            else:
-                st.warning("Cita no localizada. Revisá esta afirmación antes de usarla.")
+        approved = []
+        version = st.session_state.review_version
+        for index, (claim, quote) in enumerate(saved[2], start=1):
+            key = f"review-{version}-{index}"
+            with st.container(border=True):
+                st.markdown(f"**Afirmación {index}**")
+                edited = st.text_area("Texto comercial", value=claim, key=f"{key}-text")
+                citation = st.text_area("Cita de la ficha", value=quote, key=f"{key}-quote").strip()
+                located = bool(citation) and citation in sheet
+                if located:
+                    st.info("Cita localizada. Comprobá que respalde el texto completo.")
+                else:
+                    st.warning("Cita no localizada. Copiá un fragmento literal de la ficha.")
+                # An approval belongs to this exact pair of text and evidence.
+                if located and edited.strip() and st.checkbox(
+                    "Apruebo esta afirmación",
+                    key=f"{key}-approval-{review_signature(edited, citation)}",
+                ):
+                    approved.append(edited.strip())
+
+        if approved:
+            body = "\n\n".join(f"- {claim}" for claim in approved)
+            st.download_button(
+                "Descargar texto comercial aprobado",
+                data=f"# Material comercial · {audience}\n\n{body}\n",
+                file_name="material-comercial.md",
+                mime="text/markdown",
+            )
+
+
+def review_signature(text, citation):
+    import hashlib
+    import json
+
+    pair = json.dumps([text, citation], ensure_ascii=False)
+    return hashlib.sha256(pair.encode("utf-8")).hexdigest()
 
 
 show_live_generation()
