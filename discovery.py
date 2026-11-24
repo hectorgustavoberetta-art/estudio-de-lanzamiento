@@ -46,14 +46,14 @@ def reset_key(label):
 
 def show_discovery(api_key, authorized, model):
     st.caption("Buscá especificaciones de drones civiles. La consulta y la foto, si la cargás, se envían a OpenAI.")
-    method = st.radio("Tipo de búsqueda", ["Marca y modelo", "Reconocer desde una foto"], key=reset_key("Tipo de búsqueda"), horizontal=True)
-    if not authorized or not api_key:
-        st.info("Ingresá el código del equipo para iniciar la búsqueda.")
-        return "", ""
+    method = st.radio("Tipo de búsqueda", ["Marca y modelo", "Subir una foto"], key=reset_key("Tipo de búsqueda"), horizontal=True)
+    ready = bool(authorized and api_key)
+    if not ready:
+        st.info("Podés cargar la foto o escribir el modelo. Para iniciar la consulta, ingresá el código del equipo.")
 
-    if method == "Reconocer desde una foto":
-        photo = st.file_uploader("Foto del dron", key=reset_key("Foto del dron"), type=["png", "jpg", "jpeg"], max_upload_size=5)
-        if st.button("Sugerir modelos", disabled=photo is None):
+    if method == "Subir una foto":
+        photo = st.file_uploader("Subí o arrastrá una foto del dron", key=reset_key("Foto del dron"), type=["png", "jpg", "jpeg"], max_upload_size=5)
+        if st.button("Sugerir modelos", disabled=photo is None or not ready):
             st.session_state.pop("drone_candidates", None)
             try:
                 mime = "image/png" if photo.name.lower().endswith(".png") else "image/jpeg"
@@ -82,14 +82,14 @@ def show_discovery(api_key, authorized, model):
             except (OSError, ValueError, KeyError, TypeError):
                 st.error("No se pudo reconocer la imagen. Revisá el acceso a Responses API.")
         saved = st.session_state.get("drone_candidates")
-        if not saved or photo is None or saved[0] != photo.file_id or not saved[1]:
+        if not ready or not saved or photo is None or saved[0] != photo.file_id or not saved[1]:
             return "", ""
         st.caption("Los candidatos son sugerencias. Confirmá visualmente el modelo antes de buscar.")
         name = st.selectbox("Seleccioná el modelo que reconocés", saved[1], key=reset_key("Seleccioná el modelo que reconocés"), index=None)
     else:
-        name = st.text_input("Marca y modelo", key=reset_key("Marca y modelo"), max_chars=100).strip()
+        name = st.text_input("Marca y modelo", placeholder="Escribí el nombre o modelo del dron", key=reset_key("Marca y modelo"), max_chars=100).strip()
 
-    if st.button("Buscar ficha e imágenes", disabled=not name):
+    if st.button("Buscar ficha e imágenes", disabled=not name or not ready):
         st.session_state.pop("drone_lookup", None)
         try:
             with st.spinner("Buscando documentación del modelo…"):
@@ -118,7 +118,7 @@ def show_discovery(api_key, authorized, model):
         except (OSError, ValueError, KeyError, TypeError):
             st.error("No se pudo completar la búsqueda.")
     result = st.session_state.get("drone_lookup")
-    if not result or result[0] != name:
+    if not ready or not result or result[0] != name:
         return "", ""
     _, sheet, sources = result
     if not sheet:
