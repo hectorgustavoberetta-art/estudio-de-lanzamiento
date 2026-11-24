@@ -66,11 +66,15 @@ def extract_sheet(upload):
     return upload.getvalue().decode("utf-8-sig")
 
 
+def reset_key(label):
+    return f"evaluation-{st.session_state.get('evaluation_revision', 0)}-{label}"
+
+
 def show_live_generation():
     from hmac import compare_digest
 
     st.subheader("Cargar ficha técnica")
-    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto", "Buscar ficha e imágenes"], horizontal=True)
+    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto", "Buscar ficha e imágenes"], key=reset_key("Cómo querés cargar la ficha"), horizontal=True)
     sheet = ""
     try:
         config = st.secrets.get("generation", {})
@@ -78,15 +82,15 @@ def show_live_generation():
         config = {}
     api_key = config.get("api_key")
     access_code = config.get("access_code")
-    entered = st.text_input("Código del equipo", type="password")
+    entered = st.text_input("Código del equipo", key=reset_key("Código del equipo"), type="password")
     authorized = bool(access_code and entered and compare_digest(entered.encode(), access_code.encode()))
     name = ""
     if method == "Buscar ficha e imágenes":
         name, sheet = show_discovery(api_key, authorized, config.get("discovery_model", "gpt-4.1-mini"))
     else:
-        name = st.text_input("Nombre del producto", max_chars=100)
+        name = st.text_input("Nombre del producto", key=reset_key("Nombre del producto"), max_chars=100)
     if method == "Subir archivo":
-        upload = st.file_uploader("Ficha técnica", type=["pdf", "docx", "txt"], max_upload_size=10)
+        upload = st.file_uploader("Ficha técnica", key=reset_key("Ficha técnica"), type=["pdf", "docx", "txt"], max_upload_size=10)
         if upload is not None:
             try:
                 sheet = extract_sheet(upload)
@@ -95,12 +99,12 @@ def show_live_generation():
             if not sheet.strip():
                 st.warning("El archivo no contiene texto extraíble. Si es un PDF escaneado, pegá el texto de la ficha.")
     elif method == "Pegar texto":
-        sheet = st.text_area("Texto de la ficha técnica", height=220)
+        sheet = st.text_area("Texto de la ficha técnica", key=reset_key("Texto de la ficha técnica"), height=220)
 
     name = name.strip()
     sheet = sheet.strip()
     st.subheader("Generar con IA")
-    audience = st.radio("Público", ["Cliente final", "Distribuidor"], horizontal=True)
+    audience = st.radio("Público", ["Cliente final", "Distribuidor"], key=reset_key("Público"), horizontal=True)
     st.caption("El texto de la ficha se envía a OpenAI al generar el borrador.")
     context = (name, audience, sheet)
     if st.button("Generar borrador", type="primary"):
@@ -165,7 +169,7 @@ def show_live_generation():
         metadata = report_metadata(name, audience, sheet)
         with st.expander("Fotos para el fondo del PowerPoint"):
             uploads = st.file_uploader(
-                "Fotos del dron", type=["png", "jpg", "jpeg"], accept_multiple_files=True,
+                "Fotos del dron", key=reset_key("Fotos del dron"), type=["png", "jpg", "jpeg"], accept_multiple_files=True,
                 max_upload_size=5, help="Subí hasta cuatro fotos. Sin fotos, se usa el collage ilustrativo.",
             )
             if len(uploads) > 4:
@@ -271,13 +275,13 @@ def show_comparison():
     st.header("Comparación de fichas técnicas")
     st.caption("Cargá dos fichas de drones civiles para cotejar sus características documentadas.")
     left, right = st.columns(2)
-    first = left.file_uploader("Ficha del dron A", type=["pdf", "docx", "txt"], max_upload_size=10)
-    second = right.file_uploader("Ficha del dron B", type=["pdf", "docx", "txt"], max_upload_size=10)
+    first = left.file_uploader("Ficha del dron A", key=reset_key("Ficha del dron A"), type=["pdf", "docx", "txt"], max_upload_size=10)
+    second = right.file_uploader("Ficha del dron B", key=reset_key("Ficha del dron B"), type=["pdf", "docx", "txt"], max_upload_size=10)
     try:
         config = st.secrets.get("generation", {})
     except FileNotFoundError:
         config = {}
-    entered = st.text_input("Código del equipo para comparar", type="password")
+    entered = st.text_input("Código del equipo para comparar", key=reset_key("Código del equipo para comparar"), type="password")
     code = config.get("access_code")
     authorized = bool(code and entered and compare_digest(entered.encode(), code.encode()))
     context = (first.file_id, second.file_id) if first is not None and second is not None else None
@@ -332,6 +336,18 @@ def apply_background():
     [data-testid="stHeader"] {
         background-color: transparent;
     }
+    .st-key-reset_toolbar {
+        position: sticky;
+        top: 3.5rem;
+        z-index: 10;
+        width: fit-content;
+        margin-bottom: 1rem;
+    }
+    .st-key-reset_toolbar button {
+        background: #f8fbff;
+        color: #102541;
+        border: 1px solid #9bb3d1;
+    }
     .st-key-launch_panel {
         background-color: #f8fbfff2;
         color-scheme: light;
@@ -351,7 +367,19 @@ def apply_background():
     """.replace("IMAGE_DATA", encoded))
 
 
+def reset_evaluation():
+    revision = st.session_state.get("evaluation_revision", 0) + 1
+    st.session_state.clear()
+    st.session_state.evaluation_revision = revision
+
+
 apply_background()
+with st.container(key="reset_toolbar"):
+    st.button(
+        "Reiniciar evaluación",
+        on_click=reset_evaluation,
+        help="Borra los datos cargados, los resultados y el código ingresado en esta sesión.",
+    )
 with st.container(key="launch_panel"):
     st.title("Estudio de Lanzamiento")
     show_live_generation()
