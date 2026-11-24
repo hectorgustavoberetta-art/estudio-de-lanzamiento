@@ -79,7 +79,16 @@ def show_live_generation():
         st.subheader("Cargar ficha técnica")
         method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto"], key=reset_key("Cómo querés cargar la ficha"), horizontal=True)
     with artwork:
-        st.html('<div class="launch-drone-image" role="img" aria-label="Dron de inspección con cámara"></div>')
+        from PIL import Image
+
+        collage = Path(__file__).with_name("fondo-drones.png")
+        if collage.is_file():
+            with Image.open(collage) as image:
+                width, height = image.size
+                logistics_drone = image.crop(
+                    (round(width * .63), round(height * .25), round(width * .85), round(height * .52))
+                )
+                st.image(logistics_drone, width="stretch")
     sheet = ""
     try:
         config = st.secrets.get("generation", {})
@@ -404,13 +413,6 @@ def apply_background():
         padding: clamp(1rem, 3vw, 2.5rem);
         max-width: 54rem;
         margin-inline: auto;
-    }
-    .launch-drone-image {
-        width: 100%;
-        aspect-ratio: 7 / 5;
-        border: 1px solid #174b71;
-        border-radius: .65rem;
-        background: var(--drone-collage) 13% 63% / 400% auto no-repeat;
     }
     .st-key-launch_panel h1#estudio-de-lanzamiento {
         font-size: clamp(1.65rem, 2.6vw, 2.35rem);
