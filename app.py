@@ -3,6 +3,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from discovery import show_discovery
 from reports import build_presentation, build_word, export_name, report_metadata
 
 st.set_page_config(page_title="Estudio de Lanzamiento", layout="wide")
@@ -69,9 +70,21 @@ def show_live_generation():
     from hmac import compare_digest
 
     st.subheader("Cargar ficha técnica")
-    name = st.text_input("Nombre del producto", max_chars=100)
-    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto"], horizontal=True)
+    method = st.radio("Cómo querés cargar la ficha", ["Subir archivo", "Pegar texto", "Buscar ficha e imágenes"], horizontal=True)
     sheet = ""
+    try:
+        config = st.secrets.get("generation", {})
+    except FileNotFoundError:
+        config = {}
+    api_key = config.get("api_key")
+    access_code = config.get("access_code")
+    entered = st.text_input("Código del equipo", type="password")
+    authorized = bool(access_code and entered and compare_digest(entered.encode(), access_code.encode()))
+    name = ""
+    if method == "Buscar ficha e imágenes":
+        name, sheet = show_discovery(api_key, authorized, config.get("discovery_model", "gpt-4.1-mini"))
+    else:
+        name = st.text_input("Nombre del producto", max_chars=100)
     if method == "Subir archivo":
         upload = st.file_uploader("Ficha técnica", type=["pdf", "docx", "txt"], max_upload_size=10)
         if upload is not None:
@@ -81,21 +94,13 @@ def show_live_generation():
                 st.error("No pudimos leer el archivo. Probá pegar el texto de la ficha.")
             if not sheet.strip():
                 st.warning("El archivo no contiene texto extraíble. Si es un PDF escaneado, pegá el texto de la ficha.")
-    else:
+    elif method == "Pegar texto":
         sheet = st.text_area("Texto de la ficha técnica", height=220)
 
     name = name.strip()
     sheet = sheet.strip()
     st.subheader("Generar con IA")
     audience = st.radio("Público", ["Cliente final", "Distribuidor"], horizontal=True)
-    try:
-        config = st.secrets.get("generation", {})
-    except FileNotFoundError:
-        config = {}
-    api_key = config.get("api_key")
-    access_code = config.get("access_code")
-    entered = st.text_input("Código del equipo", type="password")
-    authorized = bool(access_code and entered and compare_digest(entered.encode(), access_code.encode()))
     st.caption("El texto de la ficha se envía a OpenAI al generar el borrador.")
     context = (name, audience, sheet)
     if st.button("Generar borrador", type="primary"):
