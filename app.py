@@ -337,11 +337,36 @@ def apply_background():
         background-color: transparent;
     }
     .st-key-reset_toolbar {
-        position: sticky;
-        top: 3.5rem;
-        z-index: 10;
-        width: fit-content;
-        margin-bottom: 1rem;
+        max-width: 70rem;
+        margin: 0 0 1.25rem clamp(0rem, 3vw, 3rem);
+    }
+    .st-key-reset_toolbar [data-testid="stPopover"] > button,
+    .st-key-reset_toolbar [data-testid="stButton"] > button,
+    .st-key-reset_toolbar .compare-nav {
+        width: 100%;
+        min-height: 3.5rem;
+        box-sizing: border-box;
+        border-radius: .55rem;
+        text-align: center;
+        line-height: 1.15;
+        font-size: .875rem;
+    }
+    .st-key-reset_toolbar .compare-nav {
+        display: grid;
+        place-items: center;
+        padding: .5rem;
+        text-decoration: none;
+        background: #164c87;
+        border: 1px solid #81aad4;
+        color: #fff;
+        font-weight: 800;
+    }
+    .st-key-reset_toolbar .compare-nav:hover,
+    .st-key-reset_toolbar .compare-nav:focus-visible {
+        background: #103965;
+    }
+    #comparacion-de-fichas-tecnicas {
+        scroll-margin-top: 4.5rem;
     }
     .st-key-reset_toolbar button {
         background: #164c87;
@@ -351,6 +376,8 @@ def apply_background():
     .st-key-reset_toolbar button p {
         color: #fff;
         font-weight: 800;
+        font-size: .875rem;
+        line-height: 1.15;
     }
     .st-key-reset_toolbar button:hover,
     .st-key-reset_toolbar button:focus-visible {
@@ -382,16 +409,25 @@ def reset_evaluation():
     st.session_state.evaluation_revision = revision
 
 
+def select_sheet_method(method):
+    st.session_state[reset_key("Cómo querés cargar la ficha")] = method
+
+
 apply_background()
 with st.container(key="reset_toolbar"):
-    st.button(
-        "REINICIAR EVALUACIÓN",
-        on_click=reset_evaluation,
-        help="Borra los datos cargados, los resultados y el código ingresado en esta sesión.",
-    )
-    with st.popover("SEGURIDAD"):
-        st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
-        st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
+    load_col, search_col, compare_col, reset_col, security_col = st.columns(5, gap="small")
+    load_col.button("CARGAR FICHA", on_click=select_sheet_method, args=("Subir archivo",))
+    search_col.button("BUSCAR DRON", on_click=select_sheet_method, args=("Buscar ficha e imágenes",))
+    with compare_col:
+        st.html('<a class="compare-nav" href="#comparacion-de-fichas-tecnicas">COMPARAR FICHAS</a>')
+    with reset_col:
+        with st.popover("REINICIAR EVALUACIÓN"):
+            st.write("Se borrarán los datos y resultados de la evaluación actual.")
+            st.button("Confirmar reinicio", on_click=reset_evaluation)
+    with security_col:
+        with st.popover("SEGURIDAD"):
+            st.caption("La clave del equipo se administra en la configuración de esta aplicación.")
+            st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
 with st.container(key="launch_panel"):
     st.title("Estudio de Lanzamiento")
     show_live_generation()
