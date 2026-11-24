@@ -44,7 +44,7 @@ def export_name(metadata, extension):
     return f"Estudio_de_Mercado_{model}_{values['Fecha de elaboración']}.{extension}"
 
 
-def build_word(metadata, reviewed):
+def create_word_document():
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml import OxmlElement
@@ -99,6 +99,13 @@ def build_word(metadata, reviewed):
     page.set(qn("w:instr"), "PAGE")
     footer._p.append(page)
 
+    return document
+
+
+def build_word(metadata, reviewed):
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    document = create_word_document()
     heading = document.add_paragraph(TITLE, "Title")
     heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
     profile = document.add_table(rows=0, cols=2)
@@ -116,6 +123,37 @@ def build_word(metadata, reviewed):
             paragraph = document.add_paragraph()
             paragraph.add_run(f"{label} — ").bold = True
             paragraph.add_run(citation)
+    output = BytesIO()
+    document.save(output)
+    return output.getvalue()
+
+
+def build_comparison_word(first_name, second_name, rows):
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.shared import Cm
+
+    document = create_word_document()
+    heading = document.add_paragraph("COMPARACIÓN DE FICHAS TÉCNICAS", "Title")
+    heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    document.add_paragraph(f"Ficha A · {first_name}")
+    document.add_paragraph(f"Ficha B · {second_name}")
+
+    table = document.add_table(rows=1, cols=3)
+    table.style = "Light Shading Accent 1"
+    table.autofit = False
+    columns = ("Criterio", "Ficha A", "Ficha B")
+    widths = (4, 6.5, 6.5)
+    header = table.rows[0]
+    header._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+    for column, cell, label, width in zip(table.columns, header.cells, columns, widths):
+        column.width = cell.width = Cm(width)
+        cell.paragraphs[0].add_run(label).bold = True
+    for row in rows:
+        for cell, label, width in zip(table.add_row().cells, columns, widths):
+            cell.width = Cm(width)
+            cell.text = row[label]
+
     output = BytesIO()
     document.save(output)
     return output.getvalue()
