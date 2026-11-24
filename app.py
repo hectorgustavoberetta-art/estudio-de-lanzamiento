@@ -271,8 +271,7 @@ def compare_specs(api_key, model, sheets):
 def show_comparison():
     from hmac import compare_digest
 
-    st.divider()
-    st.header("Comparación de fichas técnicas")
+    st.title("Comparación de fichas técnicas")
     st.caption("Cargá dos fichas de drones civiles para cotejar sus características documentadas.")
     left, right = st.columns(2)
     first = left.file_uploader("Ficha del dron A", key=reset_key("Ficha del dron A"), type=["pdf", "docx", "txt"], max_upload_size=10)
@@ -359,8 +358,7 @@ def apply_background():
         width: 100% !important;
     }
     .st-key-reset_toolbar [data-testid="stPopover"] button[aria-haspopup],
-    .st-key-reset_toolbar [data-testid="stButton"] button,
-    .st-key-reset_toolbar .compare-nav {
+    .st-key-reset_toolbar [data-testid="stButton"] button {
         display: flex;
         justify-content: center;
         align-items: center;
@@ -378,20 +376,6 @@ def apply_background():
     }
     .st-key-reset_toolbar [data-testid="stPopover"] button[aria-haspopup] svg {
         display: none;
-    }
-    .st-key-reset_toolbar .compare-nav {
-        text-decoration: none;
-        background: #164c87;
-        border: 1px solid #81aad4;
-        color: #fff;
-        font-weight: 800;
-    }
-    .st-key-reset_toolbar .compare-nav:hover,
-    .st-key-reset_toolbar .compare-nav:focus-visible {
-        background: #103965;
-    }
-    #comparacion-de-fichas-tecnicas {
-        scroll-margin-top: 4.5rem;
     }
     .st-key-reset_toolbar button {
         background: #164c87;
@@ -435,7 +419,12 @@ def reset_evaluation():
 
 
 def select_sheet_method(method):
+    st.session_state.active_view = "launch"
     st.session_state[reset_key("Cómo querés cargar la ficha")] = method
+
+
+def open_comparison():
+    st.session_state.active_view = "comparison"
 
 
 apply_background()
@@ -445,11 +434,13 @@ with st.container(key="reset_toolbar"):
         st.link_button("Cambiar clave en Streamlit", "https://share.streamlit.io/")
     st.button("CARGAR FICHA", width="stretch", on_click=select_sheet_method, args=("Subir archivo",))
     st.button("BUSCAR DRON", width="stretch", on_click=select_sheet_method, args=("Buscar ficha e imágenes",))
-    st.html('<a class="compare-nav" href="#comparacion-de-fichas-tecnicas">COMPARAR FICHAS</a>')
+    st.button("COMPARAR FICHAS", width="stretch", on_click=open_comparison)
     with st.popover("REINICIAR EVALUACIÓN", width="stretch"):
         st.write("Se borrarán los datos y resultados de la evaluación actual.")
         st.button("Confirmar reinicio", on_click=reset_evaluation)
 with st.container(key="launch_panel"):
-    st.title("Estudio de Lanzamiento")
-    show_live_generation()
-    show_comparison()
+    if st.session_state.get("active_view") == "comparison":
+        show_comparison()
+    else:
+        st.title("Estudio de Lanzamiento")
+        show_live_generation()
