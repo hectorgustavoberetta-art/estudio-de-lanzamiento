@@ -75,7 +75,6 @@ def show_live_generation():
                 sheet = extract_sheet(upload)
             except Exception:
                 st.error("No pudimos leer el archivo. Probá pegar el texto de la ficha.")
-                return
             if not sheet.strip():
                 st.warning("El archivo no contiene texto extraíble. Si es un PDF escaneado, pegá el texto de la ficha.")
     else:
@@ -83,12 +82,6 @@ def show_live_generation():
 
     name = name.strip()
     sheet = sheet.strip()
-    if not sheet or not name:
-        return
-    if len(sheet) > 9000:
-        st.warning("La ficha supera los 9.000 caracteres. Pegá las secciones relevantes para esta pieza comercial.")
-        return
-
     st.subheader("Generar con IA")
     audience = st.radio("Público", ["Cliente final", "Distribuidor"], horizontal=True)
     try:
@@ -97,16 +90,26 @@ def show_live_generation():
         config = {}
     api_key = config.get("api_key")
     access_code = config.get("access_code")
-    if not api_key or not access_code:
-        st.info("La generación con IA todavía no está configurada.")
-        return
-
     entered = st.text_input("Código del equipo", type="password")
-    if not entered or not compare_digest(entered.encode(), access_code.encode()):
-        return
+    authorized = bool(access_code and entered and compare_digest(entered.encode(), access_code.encode()))
     st.caption("El texto de la ficha se envía a OpenAI al generar el borrador.")
     context = (name, audience, sheet)
     if st.button("Generar borrador", type="primary"):
+        if not name:
+            st.warning("Escribí el nombre del producto.")
+            return
+        if not sheet:
+            st.warning("Subí una ficha con texto legible o pegá sus datos técnicos.")
+            return
+        if len(sheet) > 9000:
+            st.warning("La ficha supera los 9.000 caracteres. Pegá las secciones relevantes.")
+            return
+        if not api_key or not access_code:
+            st.info("La generación con IA todavía no está configurada.")
+            return
+        if not authorized:
+            st.warning("Ingresá el código del equipo para generar el borrador.")
+            return
         st.session_state.pop("product_generation", None)
         try:
             with st.spinner("Generando el borrador comercial…"):
@@ -117,7 +120,7 @@ def show_live_generation():
             st.error("La generación no se completó. Revisá la configuración o volvé a intentar.")
 
     saved = st.session_state.get("product_generation")
-    if saved is None or saved[0] != context:
+    if not authorized or saved is None or saved[0] != context:
         return
     st.subheader(f"Revisión comercial · {name}")
     with st.expander("Ver ficha técnica cargada"):
