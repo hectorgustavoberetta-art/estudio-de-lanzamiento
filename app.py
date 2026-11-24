@@ -281,7 +281,21 @@ def compare_specs(api_key, model, sheets):
 def show_comparison():
     from hmac import compare_digest
 
-    st.title("Comparación de fichas técnicas")
+    from PIL import Image, ImageOps
+
+    heading, gallery = st.columns([3, 2], gap="medium", vertical_alignment="center")
+    heading.title("COMPARACIÓN DE FICHAS TÉCNICAS")
+    collage = Path(__file__).with_name("fondo-drones.png")
+    if collage.is_file():
+        with gallery, Image.open(collage) as image:
+            columns = st.columns(2, gap="small")
+            width, height = image.size
+            crops = ((.09, .22, .32, .37), (.63, .25, .85, .52))
+            for column, (left, top, right, bottom) in zip(columns, crops):
+                drone = image.crop(
+                    (round(width * left), round(height * top), round(width * right), round(height * bottom))
+                )
+                column.image(ImageOps.fit(drone, (400, 270)), width="stretch")
     st.caption("Cargá dos fichas de drones civiles para cotejar sus características documentadas.")
     left, right = st.columns(2)
     first = left.file_uploader("Ficha del dron A", key=reset_key("Ficha del dron A"), type=["pdf", "docx", "txt"], max_upload_size=10)
@@ -419,6 +433,11 @@ def apply_background():
         font-size: clamp(1.65rem, 2.6vw, 2.35rem);
         font-weight: 800;
         line-height: 1.1;
+    }
+    .st-key-launch_panel h1#comparacion-de-fichas-tecnicas {
+        font-size: clamp(1.4rem, 2.1vw, 1.95rem);
+        font-weight: 800;
+        line-height: 1.15;
     }
     .st-key-launch_panel h1, .st-key-launch_panel h2,
     .st-key-launch_panel h3, .st-key-launch_panel label,
